@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, Response
+from flask import Flask, request, render_template, Response, redirect, url_for
 from flask_uploads import UploadSet, configure_uploads, AUDIO
 import sys, os
 import speech_recognition as sr
@@ -8,6 +8,8 @@ import cv2
 
 app = Flask(__name__)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+global camera
+camera=cv2.VideoCapture(0)
 
 
 
@@ -32,26 +34,14 @@ def submit():
 def calc():
      return Response(get_frame(),mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route('/save_photo')
-def save_photo():
-    cam=cv2.VideoCapture(0)
-    frame = cam.read()[1]
-    target = os.path.join(APP_ROOT, 'static/')
-    if not os.path.isdir(target):
-        os.mkdir(target)
-    cv2.imwrite(filename = 'static/im2.jpg', img=frame)
-    print("shape " + frame.shape)
-    return render_template("index.html", error = "", songs = "")
-
 def get_frame():
+    global camera
 
-    camera_port=0
     ramp_frames=100
-    camera=cv2.VideoCapture(camera_port) #this makes a web cam object
-
 
     i=1
     while True:
+        global im
         retval, im = camera.read()
         imgencode=cv2.imencode('.jpg',im)[1]
         stringData=imgencode.tostring()
@@ -60,6 +50,22 @@ def get_frame():
         i+=1
 
     del(camera)
+
+@app.route('/save_photo')
+def save_photo():
+    global camera, im
+    im = camera.read()[1]
+    target = os.path.join(APP_ROOT, 'static/')
+    if not os.path.isdir(target):
+        os.mkdir(target)
+    for name in os.listdir(target):
+        print(name)
+    new_count = len([name for name in os.listdir(target)])
+    print("new_count" + str(new_count))
+    filename = "static/im" + str(new_count)  + ".jpg"
+    cv2.imwrite(filename = filename, img=im)
+    return redirect(url_for('index'))
+
 
 if __name__ == "__main__":
     global error, songs, filename, result_file
